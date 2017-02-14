@@ -1,0 +1,2 @@
+class HourlyJob < ApplicationRecord
+end
