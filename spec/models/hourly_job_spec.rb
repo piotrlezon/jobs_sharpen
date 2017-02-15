@@ -25,9 +25,24 @@ RSpec.describe HourlyJob do
     context 'when the job fails' do
       before { expect(hourly_job).to receive(:run!).and_raise('job failed') }
 
-      it 'changes status to failed' do
-        run_hourly_job
-        expect(hourly_job.reload.failed?).to be(true)
+      it 'increments failure counter' do
+        expect { run_hourly_job }.to change { hourly_job.failure_count }.by(1)
+      end
+
+      context 'for the first time' do
+        it 'changes status to failed' do
+          run_hourly_job
+          expect(hourly_job.reload.failed?).to be(true)
+        end
+      end
+
+      context 'for the last allowed time' do
+        before { hourly_job.failure_count = described_class::MAX_ALLOWED_FAILURES + 1 }
+
+        it 'changes status to aborted' do
+          run_hourly_job
+          expect(hourly_job.reload.aborted?).to be(true)
+        end
       end
     end
   end
