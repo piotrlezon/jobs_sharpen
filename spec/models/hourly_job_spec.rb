@@ -21,5 +21,14 @@ RSpec.describe HourlyJob do
         expect(hourly_job.reload.completed?).to be(true)
       end
     end
+
+    context 'when the job fails' do
+      before { expect(hourly_job).to receive(:run!).and_raise('job failed') }
+
+      it 'changes status to failed' do
+        run_hourly_job
+        expect(hourly_job.reload.failed?).to be(true)
+      end
+    end
   end
 end
