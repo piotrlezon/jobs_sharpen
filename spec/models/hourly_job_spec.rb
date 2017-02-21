@@ -101,4 +101,29 @@ RSpec.describe HourlyJob do
       end
     end
   end
+
+  describe '.to_run' do
+    let!(:hourly_jobs_not_to_run) do
+      described_class.statuses.except(:initial, :failed).values.map { |status| create(:hourly_job, status: status) }
+    end
+
+    let!(:hourly_jobs) do
+      [create(:initial_hourly_job, time: described_class.maximum(:time) + 1.hour),
+       create(:failed_hourly_job, time: described_class.minimum(:time) - 1.hour),
+       create(:initial_hourly_job, time: described_class.maximum(:time) + 3.hours),
+       create(:failed_hourly_job, time: described_class.maximum(:time) + 4.hours)]
+    end
+
+    let(:chronological_hourly_jobs) { hourly_jobs.sort_by(&:time) }
+
+    subject { described_class.to_run }
+
+    it 'returns only initial & failed jobs in chronological order' do
+      expect(subject).to eq(chronological_hourly_jobs)
+    end
+
+    it 'doesn\'t return any jobs with statuses different than initial or failed' do
+      is_expected.not_to include(*hourly_jobs_not_to_run)
+    end
+  end
 end
