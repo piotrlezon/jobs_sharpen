@@ -196,19 +196,44 @@ RSpec.describe HourlyJob do
 
   describe '.create_new_jobs' do
     let(:now) { Time.zone.now }
+    let(:time_to_create_new_jobs_since) { now.beginning_of_hour - 1.hour }
+
+    before do
+      # TODO - we could do it without mocking but the specs would be more complex
+      # TODO - allow or expect?
+      expect(described_class).to receive(:time_to_create_new_jobs_since).and_return(time_to_create_new_jobs_since)
+    end
 
     subject(:create_new_jobs) do
       Timecop.freeze(now) { described_class.create_new_jobs }
     end
 
-    context 'when no jobs exist' do
-      it 'creates a single job' do
-        expect { create_new_jobs }.to change { described_class.count }.from(0).to(1)
-      end
+    it 'creates jobs missing since the time_to_create_new_jobs_since' do
+      create_new_jobs
+      expect(described_class.pluck(:time)).to eq([time_to_create_new_jobs_since,
+                                                  time_to_create_new_jobs_since + 1.hour])
+    end
+  end
 
-      it 'creates a job for the current hour' do
-        create_new_jobs
-        expect(described_class.maximum(:time)).to eq(now.beginning_of_hour)
+  describe '.time_to_create_new_jobs_since' do
+    let(:now) { Time.zone.now }
+    # TODO - this method should be private - should it be tested like that?
+
+    subject do
+      Timecop.freeze(now) { described_class.time_to_create_new_jobs_since }
+    end
+
+    context 'when no jobs exist yet' do
+      it 'returns current hour' do
+        is_expected.to eq(now.beginning_of_hour)
+      end
+    end
+
+    context 'when some job already exists' do
+      let!(:previous_job) { create(:hourly_job, time: now.beginning_of_hour - 10.hours) }
+
+      it 'returns the following hour' do
+        is_expected.to eq(previous_job.time + 1.hour)
       end
     end
   end
