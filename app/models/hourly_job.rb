@@ -5,6 +5,10 @@ class HourlyJob < ApplicationRecord
 
   scope :to_run, -> { where(status: statuses.values_at(:initial, :failed)).order(:time) }
 
+  def self.run
+    to_run.each(&:run_exclusively)
+  end
+
   def run_exclusively
     with_lock do
       return unless initial?
