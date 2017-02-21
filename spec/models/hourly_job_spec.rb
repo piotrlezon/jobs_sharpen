@@ -196,12 +196,17 @@ RSpec.describe HourlyJob do
 
   describe '.create_new_jobs' do
     let(:now) { Time.zone.now }
+
     let(:time_to_create_new_jobs_since) { now.beginning_of_hour - 1.hour }
+    let(:expected_job_times) do
+      [time_to_create_new_jobs_since,
+       time_to_create_new_jobs_since + 1.hour]
+    end
 
     before do
       # TODO - we could do it without mocking but the specs would be more complex
       # TODO - allow or expect?
-      expect(described_class).to receive(:time_to_create_new_jobs_since).and_return(time_to_create_new_jobs_since)
+      allow(described_class).to receive(:time_to_create_new_jobs_since).and_return(time_to_create_new_jobs_since)
     end
 
     subject(:create_new_jobs) do
@@ -212,6 +217,23 @@ RSpec.describe HourlyJob do
       create_new_jobs
       expect(described_class.pluck(:time)).to eq([time_to_create_new_jobs_since,
                                                   time_to_create_new_jobs_since + 1.hour])
+    end
+
+    context 'when multiple processes try to create jobs' do
+      before { expect(ActiveRecord::Base.connection.pool.size).to be >= 5 }
+
+      it 'creates jobs missing since the time_to_create_new_jobs_since', no_transactionial_db_cleaner: true do
+        keep_waiting = true
+        threads = Array.new(ActiveRecord::Base.connection.pool.size - 1) do
+          Thread.new do
+            true while keep_waiting
+            Timecop.freeze(now) { described_class.create_new_jobs }
+          end
+        end
+        keep_waiting = false
+        threads.each(&:join)
+        expect(described_class.pluck(:time)).to eq(expected_job_times)
+      end
     end
   end
 
