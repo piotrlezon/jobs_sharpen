@@ -193,4 +193,23 @@ RSpec.describe HourlyJob do
       it { is_expected.to be(true) }
     end
   end
+
+  describe '.create_new_jobs' do
+    let(:now) { Time.zone.now }
+
+    subject(:create_new_jobs) do
+      Timecop.freeze(now) { described_class.create_new_jobs }
+    end
+
+    context 'when no jobs exist' do
+      it 'creates a single job' do
+        expect { create_new_jobs }.to change { described_class.count }.from(0).to(1)
+      end
+
+      it 'creates a job for the current hour' do
+        create_new_jobs
+        expect(described_class.maximum(:time)).to eq(now.beginning_of_hour)
+      end
+    end
+  end
 end
