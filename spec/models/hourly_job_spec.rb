@@ -113,4 +113,22 @@ RSpec.describe HourlyJob do
       is_expected.not_to include(*hourly_jobs_not_to_run)
     end
   end
+
+  describe '.run' do
+    let(:hourly_jobs) do
+      Array.new(2) { build(:hourly_job) }
+    end
+
+    before do
+      expect(described_class).to receive(:to_run).and_return(hourly_jobs)
+    end
+
+    subject(:run_hourly_jobs) { described_class.run }
+
+    it 'runs exclusively all jobs to run', :aggregate_failures do
+      # TODO - is it really an elegant spec?
+      hourly_jobs.each { |hourly_job| expect(hourly_job).to receive(:run_exclusively) }
+      run_hourly_jobs
+    end
+  end
 end
