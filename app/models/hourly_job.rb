@@ -6,7 +6,9 @@ class HourlyJob < ApplicationRecord
   scope :to_run, -> { where(status: statuses.values_at(:initial, :failed)).order(:time) }
 
   def self.run
-    to_run.each(&:run_exclusively)
+    while (hourly_jobs = to_run).present?
+      hourly_jobs.each(&:run_exclusively)
+    end
   end
 
   def run_exclusively
