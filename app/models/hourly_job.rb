@@ -8,7 +8,7 @@ class HourlyJob < ApplicationRecord
 
   def self.create_new_jobs
     (time_to_create_new_jobs_since.to_i..Time.zone.now.beginning_of_hour.to_i).step(1.hour).each do |timestamp|
-      where(time: Time.zone.at(timestamp)).first_or_create
+      where(time: Time.zone.at(timestamp)).first_or_create rescue ActiveRecord::RecordNotUnique
     end
   end
 
