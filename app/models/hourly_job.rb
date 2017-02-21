@@ -7,7 +7,14 @@ class HourlyJob < ApplicationRecord
   scope :to_run, -> { where(status: statuses.values_at(:initial, :failed)).order(:time) }
 
   def self.create_new_jobs
-    where(time: Time.zone.now.beginning_of_hour).first_or_create
+    (time_to_create_new_jobs_since.to_i..Time.zone.now.beginning_of_hour.to_i).step(1.hour).each do |timestamp|
+      where(time: Time.zone.at(timestamp)).first_or_create
+    end
+  end
+
+  def self.time_to_create_new_jobs_since
+    # TODO - ain't pretty but is simple for sure!
+    maximum(:time).try(:+, 1.hour) || Time.zone.now.beginning_of_hour
   end
 
   def self.run
