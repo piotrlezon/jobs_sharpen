@@ -132,16 +132,38 @@ RSpec.describe HourlyJob do
       Array.new(2) { build(:hourly_job) }
     end
 
+    let(:to_run_responses) { [hourly_jobs, hourly_jobs.drop(1), []] }
+
     before do
-      expect(described_class).to receive(:to_run).and_return(hourly_jobs)
+      allow(described_class).to receive(:to_run).and_return(*to_run_responses)
     end
 
     subject(:run_hourly_jobs) { described_class.run }
 
     it 'runs exclusively all jobs to run', :aggregate_failures do
       # TODO - is it really an elegant spec?
-      hourly_jobs.each { |hourly_job| expect(hourly_job).to receive(:run_exclusively) }
       run_hourly_jobs
+    end
+
+    context 'when a new job is created while previous jobs are running' do
+      let(:new_hourly_job_to_run) { create(:hourly_job) }
+      let(:to_run_responses) { [hourly_jobs, [new_hourly_job_to_run], []] }
+
+      it 'runs the new job as well' do
+        expect(new_hourly_job_to_run).to receive(:run_exclusively)
+        run_hourly_jobs
+      end
+    end
+
+    context 'when the first job keeps failing' do
+      let(:to_run_responses) { [hourly_jobs, []] }
+
+      before { expect(hourly_jobs.first).to receive(:run!).and_raise('job failed') }
+
+      it 'runs the remaining jobs anyway' do
+        expect(hourly_jobs.last).to receive(:run_exclusively)
+        run_hourly_jobs
+      end
     end
   end
 end
