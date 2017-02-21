@@ -6,6 +6,10 @@ class HourlyJob < ApplicationRecord
 
   scope :to_run, -> { where(status: statuses.values_at(:initial, :failed)).order(:time) }
 
+  def self.create_new_jobs
+    where(time: Time.zone.now.beginning_of_hour).first_or_create
+  end
+
   def self.run
     while (hourly_jobs = to_run).present?
       hourly_jobs.each do |hourly_job|
