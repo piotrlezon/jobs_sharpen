@@ -3,6 +3,8 @@ class HourlyJob < ApplicationRecord
 
   enum status: [:initial, :completed, :failed, :aborted, :running]
 
+  scope :to_run, -> { where(status: statuses.values_at(:initial, :failed)).order(:time) }
+
   def run_exclusively
     with_lock do
       return unless initial?
