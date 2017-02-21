@@ -1,7 +1,16 @@
 class HourlyJob < ApplicationRecord
   MAX_ALLOWED_FAILURES = 3
 
-  enum status: [:initial, :completed, :failed, :aborted]
+  enum status: [:initial, :completed, :failed, :aborted, :running]
+
+  def run_exclusively
+    with_lock do
+      return unless initial?
+      # TODO - running! vs run
+      running!
+    end
+    run
+  end
 
   def run
     run!
