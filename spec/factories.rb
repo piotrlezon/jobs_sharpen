@@ -11,5 +11,9 @@ FactoryGirl.define do
     factory :failed_hourly_job do
       status HourlyJob.statuses[:failed]
     end
+
+    factory :running_hourly_job do
+      status HourlyJob.statuses[:running]
+    end
   end
 end

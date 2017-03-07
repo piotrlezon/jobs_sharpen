@@ -140,17 +140,48 @@ RSpec.describe HourlyJob do
 
     subject(:run_hourly_jobs) { described_class.run }
 
-    it 'runs exclusively all jobs to run', :aggregate_failures do
-      # TODO - is it really an elegant spec?
-      run_hourly_jobs
+    context 'when it can run all the jobs' do
+      before do
+        allow(described_class).to receive(:can_run_more_jobs?).and_return(true)
+      end
+
+      it 'runs all the jobs', :aggregate_failures do
+        expect(hourly_jobs.first).to receive(:run!)
+        expect(hourly_jobs.second).to receive(:run!)
+        run_hourly_jobs
+      end
+
+      context 'when a new job is created while previous jobs are running' do
+        let(:new_hourly_job_to_run) { create(:hourly_job) }
+        let(:to_run_responses) { [hourly_jobs, [new_hourly_job_to_run], []] }
+
+        it 'runs the new job as well' do
+          expect(new_hourly_job_to_run).to receive(:run!)
+          run_hourly_jobs
+        end
+      end
     end
 
-    context 'when a new job is created while previous jobs are running' do
-      let(:new_hourly_job_to_run) { create(:hourly_job) }
-      let(:to_run_responses) { [hourly_jobs, [new_hourly_job_to_run], []] }
+    context 'if it can only run one more job' do
+      before do
+        allow(described_class).to receive(:can_run_more_jobs?).and_return(true, false)
+      end
 
-      it 'runs the new job as well' do
-        expect(new_hourly_job_to_run).to receive(:run_exclusively)
+      it 'runs the first job only' do
+        expect(hourly_jobs.first).to receive(:run!)
+        expect(hourly_jobs.last).not_to receive(:run!)
+        run_hourly_jobs
+      end
+    end
+
+    context 'if it cannot run more jobs' do
+      before do
+        allow(described_class).to receive(:can_run_more_jobs?).and_return(false)
+      end
+
+      it 'does not try to run more jobs' do
+        expect(hourly_jobs.first).not_to receive(:run!)
+        expect(hourly_jobs.last).not_to receive(:run!)
         run_hourly_jobs
       end
     end
@@ -164,6 +195,26 @@ RSpec.describe HourlyJob do
         expect(hourly_jobs.last).to receive(:run_exclusively)
         run_hourly_jobs
       end
+    end
+  end
+
+  describe '.can_run_more_jobs?' do
+    before do
+      Array.new(num_of_jobs_running) { create(:running_hourly_job) }
+    end
+
+    subject { described_class.send(:can_run_more_jobs?) }
+
+    context 'when there are max allowed jobs running already' do
+      let(:num_of_jobs_running) { described_class::MAX_NUMBER_OF_JOBS_RUNNING }
+
+      it { is_expected.to be(false) }
+    end
+
+    context 'when there are less than max allowed jobs already running' do
+      let(:num_of_jobs_running) { described_class::MAX_NUMBER_OF_JOBS_RUNNING - 1 }
+
+      it { is_expected.to be(true) }
     end
   end
 end
