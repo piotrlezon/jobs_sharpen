@@ -1,5 +1,6 @@
 class HourlyJob < ApplicationRecord
   MAX_ALLOWED_FAILURES = 3
+  MAX_NUMBER_OF_JOBS_RUNNING = 5
 
   enum status: [:initial, :completed, :failed, :aborted, :running]
 
@@ -7,8 +8,14 @@ class HourlyJob < ApplicationRecord
 
   def self.run
     while (hourly_jobs = to_run).present?
-      hourly_jobs.each(&:run_exclusively)
+      hourly_jobs.each do |hourly_job|
+        hourly_job.run_exclusively if can_run_more_jobs?
+      end
     end
+  end
+
+  def self.can_run_more_jobs?
+    running.count < MAX_NUMBER_OF_JOBS_RUNNING
   end
 
   def run_exclusively
